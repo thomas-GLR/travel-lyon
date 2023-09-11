@@ -14,14 +14,15 @@ class TypeTransport
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(["getTransports"])]
+    #[Groups(["getTransports", "getTypeTransports"])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
-    #[Groups(["getTransports"])]
+    #[Groups(["getTransports", "getTypeTransports"])]
     private ?string $libelle = null;
 
     #[ORM\OneToMany(mappedBy: 'typeTransport', targetEntity: TransportEnCommun::class)]
+    #[Groups(["getTypeTransports"])]
     private Collection $Transports;
 
     public function __construct()

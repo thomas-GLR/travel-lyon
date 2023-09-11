@@ -12,11 +12,11 @@ class TransportEnCommun
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(["getTransports"])]
+    #[Groups(["getTransports", "getTypeTransports"])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
-    #[Groups(["getTransports"])]
+    #[Groups(["getTransports", "getTypeTransports"])]
     private ?string $nomTransport = null;
 
     #[ORM\ManyToOne(inversedBy: 'Transports')]
