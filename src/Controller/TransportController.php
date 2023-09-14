@@ -12,19 +12,44 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
+use Symfony\Contracts\Cache\ItemInterface;
+use Symfony\Contracts\Cache\TagAwareCacheInterface;
 
 class TransportController extends AbstractController
 {
     #[Route('/api/transports', name: 'transport', methods: ['GET'])]
-    public function getTransportList(TransportEnCommunRepository $transportRepository, SerializerInterface $serializer): JsonResponse
+    public function getTransportList(TransportEnCommunRepository $transportRepository, SerializerInterface $serializer, Request $request, TagAwareCacheInterface $cachePool): JsonResponse
     {
 
-        $transportList = $transportRepository->findAll();
+        //$transportList = $transportRepository->findAll();
+
+        $page = $request->get('page', 1);
+        $limit = $request->get('limit', 3);
+
+        if ($page <= 0) {
+
+            $error = [
+                'status'=> Response::HTTP_BAD_REQUEST,
+                'message' => 'La page renseignée ne peut être inférieure à 1'
+            ];
+
+            return new JsonResponse($serializer->serialize($error, 'json'), Response::HTTP_BAD_REQUEST, [], true);
+        }
+
+        $idCache = "getAllTransports-" . $page . "-" . $limit;
+        $jsonTransportList = $cachePool->get($idCache, function (ItemInterface $item) use ($transportRepository, $page, $limit, $serializer) {
+            $item->tag("transportsCache");
+             $transportList = $transportRepository->findAllWithPagination($page, $limit);
+             return $serializer->serialize($transportList, 'json', ['groups' => 'getTransports']);
+        });
+        //$transportList = $transportRepository->findAllWithPagination($page, $limit);
+
         // Je sérialise ma liste d'objet pour l'envoyer ne JSON
-        $jsonTransportList = $serializer->serialize($transportList, 'json', ['groups' => 'getTransports']);
+        //$jsonTransportList = $serializer->serialize($transportList, 'json', ['groups' => 'getTransports']);
 
         return new jsonResponse($jsonTransportList,Response::HTTP_OK, [],true);
     }
@@ -36,7 +61,8 @@ class TransportController extends AbstractController
     }
 
     #[Route('api/transports/{id}', name: 'deleteTransport', methods: ['DELETE'])]
-    public function deleteTransport(TransportEnCommun $transport, EntityManagerInterface $entityManager): JsonResponse {
+    public function deleteTransport(TransportEnCommun $transport, EntityManagerInterface $entityManager, TagAwareCacheInterface $cachePool): JsonResponse {
+        $cachePool->invalidateTags(["transportsCache"]);
         $entityManager->remove($transport);
         $entityManager->flush();
 
@@ -44,6 +70,7 @@ class TransportController extends AbstractController
     }
 
     #[Route('api/transports', name: 'createTransport', methods: ['POST'])]
+    #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits suffisants pour créer un livre')]
     public function createTransport(Request $request, SerializerInterface $serializer, EntityManagerInterface $entityManager, UrlGeneratorInterface $urlGenerator, TypeTransportRepository $typeTransportRepository, ValidatorInterface $validator): JsonResponse {
         $transport = $serializer->deserialize($request->getContent(), TransportEnCommun::class, 'json');
 

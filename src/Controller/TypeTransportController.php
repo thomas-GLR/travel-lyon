@@ -14,14 +14,37 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
+use Symfony\Contracts\Cache\ItemInterface;
+use Symfony\Contracts\Cache\TagAwareCacheInterface;
 
 class TypeTransportController extends AbstractController
 {
     #[Route('api/typeTransports', name: 'typeTransport', methods: ['GET'])]
-    public function getTypeTransport(TypeTransportRepository $typeTransportRepository, SerializerInterface $serializer): JsonResponse
+    public function getTypeTransport(TypeTransportRepository $typeTransportRepository, SerializerInterface $serializer, Request $request, TagAwareCacheInterface $cachePool): JsonResponse
     {
-        $typeTransportList = $typeTransportRepository->findAll();
-        $jsonTypeTransport = $serializer->serialize($typeTransportList, 'json', ['groups' => 'getTypeTransports']);
+
+        $page = $request->get('page', 1);
+        $limit = $request->get('limit', 3);
+
+        if ($page <= 0) {
+
+            $error = [
+                'status'=> Response::HTTP_BAD_REQUEST,
+                'message' => 'La page renseignée ne peut être inférieure à 1'
+            ];
+
+            return new JsonResponse($serializer->serialize($error, 'json'), Response::HTTP_BAD_REQUEST, [], true);
+        }
+
+        $idCache = "getAllTypeTransport-" . $page . "-" . $limit;
+        $jsonTypeTransport = $cachePool->get($idCache, function (ItemInterface $item) use ($typeTransportRepository, $page, $limit, $serializer) {
+           $item->tag("transportsCache");
+            $typeTransportList = $typeTransportRepository->findAllWithPagination($page, $limit);
+           return $serializer->serialize($typeTransportList, 'json', ['groups' => 'getTypeTransports']);
+        });
+
+        //$typeTransportList = $typeTransportRepository->findAll();
+        //$jsonTypeTransport = $serializer->serialize($typeTransportList, 'json', ['groups' => 'getTypeTransports']);
         return new JsonResponse($jsonTypeTransport, Response::HTTP_OK, [], true);
     }
 
@@ -32,9 +55,12 @@ class TypeTransportController extends AbstractController
     }
 
     #[Route('api/typeTransports/{id}', name: 'deleteTypeTransport', methods: ['DELETE'])]
-    public function deleteTypeTransport(TypeTransport $typeTransport, EntityManagerInterface $entityManager): JsonResponse {
+    public function deleteTypeTransport(TypeTransport $typeTransport, EntityManagerInterface $entityManager, TagAwareCacheInterface $cachePool): JsonResponse {
+
         $entityManager->remove($typeTransport);
         $entityManager->flush();
+
+        $cachePool->invalidateTags(["transportsCache"]);
 
         return new JsonResponse(null, Response::HTTP_NO_CONTENT);
     }

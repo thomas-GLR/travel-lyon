@@ -21,6 +21,13 @@ class TypeTransportRepository extends ServiceEntityRepository
         parent::__construct($registry, TypeTransport::class);
     }
 
+    public function findAllWithPagination($page, $limit) {
+        $queryBuilder = $this->createQueryBuilder('b')
+            ->setFirstResult(($page - 1) * $limit)
+            ->setMaxResults($limit);
+        return $queryBuilder->getQuery()->getResult();
+    }
+
 //    /**
 //     * @return TypeTransport[] Returns an array of TypeTransport objects
 //     */

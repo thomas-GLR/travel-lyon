@@ -21,6 +21,13 @@ class TransportEnCommunRepository extends ServiceEntityRepository
         parent::__construct($registry, TransportEnCommun::class);
     }
 
+    public function findAllWithPagination($page, $limit) {
+        $queryBuilder = $this->createQueryBuilder('b')
+            ->setFirstResult(($page - 1) * $limit)
+            ->setMaxResults($limit);
+        return $queryBuilder->getQuery()->getResult();
+    }
+
 //    /**
 //     * @return TransportEnCommun[] Returns an array of TransportEnCommun objects
 //     */
