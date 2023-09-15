@@ -4,7 +4,9 @@ namespace App\Entity;
 
 use App\Repository\TransportEnCommunRepository;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\Serializer\Annotation\Groups;
+//use Symfony\Component\Serializer\Annotation\Groups;
+use JMS\Serializer\Annotation\Groups;
+use JMS\Serializer\Annotation\Since;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: TransportEnCommunRepository::class)]
@@ -27,6 +29,11 @@ class TransportEnCommun
     #[ORM\JoinColumn(onDelete:"CASCADE")]
     #[Groups(["getTransports"])]
     private ?TypeTransport $typeTransport = null;
+
+    #[ORM\Column(length: 255)]
+    #[Groups(["getTransports"])]
+    #[Since("2.0")]
+    private ?string $terminusDepart = null;
 
     public function getId(): ?int
     {
@@ -67,6 +74,18 @@ class TransportEnCommun
     public function setTypeTransport(?TypeTransport $typeTransport): static
     {
         $this->typeTransport = $typeTransport;
+
+        return $this;
+    }
+
+    public function getTerminusDepart(): ?string
+    {
+        return $this->terminusDepart;
+    }
+
+    public function setTerminusDepart(string $terminusDepart): static
+    {
+        $this->terminusDepart = $terminusDepart;
 
         return $this;
     }

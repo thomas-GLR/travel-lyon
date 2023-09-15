@@ -5,6 +5,9 @@ namespace App\Controller;
 use App\Entity\TypeTransport;
 use App\Repository\TypeTransportRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use JMS\Serializer\Serializer;
+use JMS\Serializer\SerializationContext;
+use JMS\Serializer\SerializerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -12,7 +15,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
-use Symfony\Component\Serializer\SerializerInterface;
+//use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 use Symfony\Contracts\Cache\TagAwareCacheInterface;
@@ -38,9 +41,10 @@ class TypeTransportController extends AbstractController
 
         $idCache = "getAllTypeTransport-" . $page . "-" . $limit;
         $jsonTypeTransport = $cachePool->get($idCache, function (ItemInterface $item) use ($typeTransportRepository, $page, $limit, $serializer) {
-           $item->tag("transportsCache");
+            $item->tag("transportsCache");
             $typeTransportList = $typeTransportRepository->findAllWithPagination($page, $limit);
-           return $serializer->serialize($typeTransportList, 'json', ['groups' => 'getTypeTransports']);
+            $context = SerializationContext::create()->setGroups(['getTypeTransports']);
+            return $serializer->serialize($typeTransportList, 'json', $context);
         });
 
         //$typeTransportList = $typeTransportRepository->findAll();
@@ -50,7 +54,8 @@ class TypeTransportController extends AbstractController
 
     #[Route('api/typeTransports/{id}', name: 'detailTypeTransport', methods: ['GET'])]
     public function getDetailTransport(TypeTransport $typeTransport, SerializerInterface $serializer): JsonResponse {
-        $jsonTransport = $serializer->serialize($typeTransport, 'json', ['groups' => 'getTypeTransports']);
+        $context = SerializationContext::create()->setGroups(['getTypeTransports']);
+        $jsonTransport = $serializer->serialize($typeTransport, 'json', $context);
         return new JsonResponse($jsonTransport, Response::HTTP_OK, ['accept' => 'json'], true);
     }
 
@@ -78,7 +83,8 @@ class TypeTransportController extends AbstractController
         $entityManager->persist($typeTransport);
         $entityManager->flush();
 
-        $jsonTypeTransport = $serializer->serialize($typeTransport, 'json', ['groups' => 'getTypeTransports']);
+        $context = SerializationContext::create()->setGroups(['getTypeTransports']);
+        $jsonTypeTransport = $serializer->serialize($typeTransport, 'json', $context);
 
         $location = $urlGenerator->generate('detailTransport', ['id' => $typeTransport->getId()], UrlGeneratorInterface::ABSOLUTE_URL);
 
@@ -87,14 +93,20 @@ class TypeTransportController extends AbstractController
 
     #[Route('api/typeTransports/{id}', name: 'updateTypeTransport', methods: ['PUT'])]
     public function updateTypeTransport(Request $request, SerializerInterface $serializer, EntityManagerInterface $entityManager, TypeTransport $currentTypeTransport): JsonResponse {
+
+        $newTypeTransport = $serializer->deserialize($request->getContent(), TypeTransport::class, 'json');
+        $currentTypeTransport->setlibelle($newTypeTransport->getLibelle());
+
+        /*
         $updatedTypeTransport = $serializer->deserialize(
             $request->getContent(),
             TypeTransport::class,
             'json',
             [AbstractNormalizer::OBJECT_TO_POPULATE => $currentTypeTransport]
         );
+        */
 
-        $entityManager->persist($updatedTypeTransport);
+        $entityManager->persist($currentTypeTransport);
         $entityManager->flush();
 
         return new JsonResponse(null, Response::HTTP_NO_CONTENT);
